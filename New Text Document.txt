@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Tower Shooter</title>
+<style>
+body { margin: 0; background: #87CEEB; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif;}
+canvas { background: #87CEEB; border:2px solid #000; }
+#score { position:absolute; top:20px; font-size:24px; color:#000;}
+#gameOver { position:absolute; top:50%; transform:translateY(-50%); font-size:36px; color:red; display:none;}
+</style>
+</head>
+<body>
+<div id="score">Score: 0</div>
+<div id="gameOver">GAME OVER<br>Press R to Restart</div>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreDiv = document.getElementById('score');
+const gameOverDiv = document.getElementById('gameOver');
+
+let tower = [];
+let blockW=100, blockH=20;
+let x=canvas.width/2-blockW/2, y=canvas.height-blockH;
+let speed=3, movingRight=true;
+let gameRunning=true, score=0;
+let enemies=[], bullets=[], towerHP=5;
+
+function resetGame(){
+    tower=[], enemies=[], bullets=[];
+    x=canvas.width/2-blockW/2; y=canvas.height-blockH;
+    speed=3; movingRight=true; gameRunning=true; score=0; towerHP=5;
+    scoreDiv.innerText="Score: 0"; gameOverDiv.style.display="none";
+}
+
+// Thêm quái m?i
+function spawnEnemy(){
+    let ex = Math.random()*(canvas.width-30);
+    enemies.push({x: ex, y: -30, w:30, h:30, speed:1 + Math.random()});
+}
+
+document.addEventListener('keydown', e=>{
+    if(!gameRunning && e.code==="KeyR"){ resetGame(); }
+    if(gameRunning && e.code==="Space"){
+        // Ð?t block
+        if(tower.length>0){
+            let last = tower[tower.length-1];
+            if(x + blockW < last.x || x > last.x + last.w){ gameRunning=false; gameOverDiv.style.display="block"; return; }
+            if(x<last.x){ blockW -= (last.x-x); x=last.x; }
+            else if(x+blockW>last.x+last.w){ blockW -= (x+blockW-(last.x+last.w)); }
+        }
+        tower.push({x:x, y:y, w:blockW});
+        y-=blockH; score++; scoreDiv.innerText="Score: "+score;
+
+        // B?n d?n t? block trên cùng
+        bullets.push({x:x+blockW/2-5, y:y, w:10, h:10, speed:5});
+        speed+=0.05; // tang t?c
+    }
+});
+
+function gameLoop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    if(gameRunning){
+        // Di chuy?n block
+        if(movingRight){ x+=speed; if(x+blockW>canvas.width) movingRight=false; }
+        else{ x-=speed; if(x<0) movingRight=true; }
+
+        // Thêm quái
+        if(Math.random()<0.02) spawnEnemy();
+    }
+
+    // V? tháp
+    tower.forEach(b=>{ ctx.fillStyle='green'; ctx.fillRect(b.x,b.y,b.w,blockH); });
+
+    // V? block di chuy?n
+    if(gameRunning){ ctx.fillStyle='darkgreen'; ctx.fillRect(x,y,blockW,blockH); }
+
+    // Di chuy?n và v? quái
+    for(let i=enemies.length-1;i>=0;i--){
+        let e=enemies[i];
+        e.y+=e.speed;
+        ctx.fillStyle='red';
+        ctx.fillRect(e.x,e.y,e.w,e.h);
+
+        // Ki?m tra va ch?m v?i tháp
+        for(let b of tower){
+            if(e.y+e.h >= b.y && e.y<=b.y+b.h && e.x+e.w>=b.x && e.x<=b.x+b.w){
+                towerHP--; enemies.splice(i,1); if(towerHP<=0){ gameRunning=false; gameOverDiv.style.display="block"; }
+                break;
+            }
+        }
+    }
+
+    // Di chuy?n và v? d?n
+    for(let i=bullets.length-1;i>=0;i--){
+        let b=bullets[i];
+        b.y-=b.speed;
+        ctx.fillStyle='yellow';
+        ctx.fillRect(b.x,b.y,b.w,b.h);
+
+        // Va ch?m v?i quái
+        for(let j=enemies.length-1;j>=0;j--){
+            let e=enemies[j];
+            if(b.x<b.x+b.w && b.y<b.y+b.h && b.x<b.x+b.w && b.y<b.y+b.h){ }
+            if(b.x<e.x+e.w && b.x+b.w>e.x && b.y<e.y+e.h && b.y+b.h>e.y){
+                enemies.splice(j,1);
+                bullets.splice(i,1);
+                score+=2; scoreDiv.innerText="Score: "+score;
+                break;
+            }
+        }
+
+        if(b.y<0) bullets.splice(i,1);
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>
